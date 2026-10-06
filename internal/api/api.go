@@ -20,11 +20,13 @@ func New(db *sql.DB, dataDir, apiToken string) http.Handler {
     s := &Server{db: db, dataDir: dataDir}
     mux := http.NewServeMux()
     mux.HandleFunc("GET /healthz", s.health)
+    mux.HandleFunc("POST /api/v1/auth/login", s.login)
     mux.HandleFunc("POST /api/v1/cases", s.createCase)
     mux.HandleFunc("GET /api/v1/cases", s.listCases)
     mux.HandleFunc("POST /api/v1/cases/{id}/evidence", s.uploadEvidence)
     mux.HandleFunc("GET /api/v1/cases/{id}/evidence", s.listEvidence)
-    return withAuth(mux, apiToken)
+    protected := withServer(s, requireAuth(mux))
+    return withAuth(protected, apiToken)
 }
 
 func withAuth(next http.Handler, token string) http.Handler {
