@@ -18,6 +18,7 @@ services:
     environment:
       CASEHAWK_DATABASE_URL: postgres://casehawk:casehawk@db:5432/casehawk?sslmode=disable
       CASEHAWK_DATA_DIR: /data/evidence
+      CASEHAWK_API_TOKEN: change-me-in-development
     ports:
       - "8080:8080"
     volumes:
