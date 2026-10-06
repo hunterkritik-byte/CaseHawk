@@ -16,7 +16,7 @@ import (
 
 type Server struct { db *sql.DB; dataDir string }
 
-func New(db *sql.DB, dataDir string) http.Handler {
+func New(db *sql.DB, dataDir, apiToken string) http.Handler {
     s := &Server{db: db, dataDir: dataDir}
     mux := http.NewServeMux()
     mux.HandleFunc("GET /healthz", s.health)
@@ -24,7 +24,17 @@ func New(db *sql.DB, dataDir string) http.Handler {
     mux.HandleFunc("GET /api/v1/cases", s.listCases)
     mux.HandleFunc("POST /api/v1/cases/{id}/evidence", s.uploadEvidence)
     mux.HandleFunc("GET /api/v1/cases/{id}/evidence", s.listEvidence)
-    return mux
+    return withAuth(mux, apiToken)
+}
+
+func withAuth(next http.Handler, token string) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        if r.URL.Path == "/healthz" { next.ServeHTTP(w,r); return }
+        if token == "" { writeError(w, 503, "CASEHAWK_API_TOKEN is not configured"); return }
+        auth := strings.TrimSpace(r.Header.Get("Authorization"))
+        if auth != "Bearer "+token { writeError(w, 401, "unauthorized"); return }
+        next.ServeHTTP(w,r)
+    })
 }
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) { writeJSON(w, 200, map[string]string{"status":"ok","service":"casehawk"}) }
