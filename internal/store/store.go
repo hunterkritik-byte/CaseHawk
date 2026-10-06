@@ -6,6 +6,7 @@ import (
     "crypto/sha256"
     "encoding/hex"
     "fmt"
+    "time"
     _ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -53,6 +54,21 @@ CREATE TABLE IF NOT EXISTS evidence (
     storage_path TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS network_indicators (
+    id UUID PRIMARY KEY,
+    case_id UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    value TEXT NOT NULL,
+    source TEXT NOT NULL,
+    classification TEXT NOT NULL DEFAULT 'unknown',
+    provider TEXT NOT NULL DEFAULT '',
+    confidence TEXT NOT NULL DEFAULT 'unknown',
+    notes TEXT NOT NULL DEFAULT '',
+    observed_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_indicators_case ON network_indicators(case_id);
+CREATE INDEX IF NOT EXISTS idx_indicators_value ON network_indicators(value);
 CREATE TABLE IF NOT EXISTS audit_events (
     id BIGSERIAL PRIMARY KEY,
     case_id UUID REFERENCES cases(id) ON DELETE SET NULL,
@@ -80,16 +96,16 @@ CREATE TRIGGER audit_events_no_update BEFORE UPDATE OR DELETE ON audit_events FO
 }
 
 func VerifyAuditChain(db *sql.DB) error {
-	rows,err:=db.Query("SELECT id,case_id,action,actor,target_id,prev_hash,event_hash FROM audit_events ORDER BY id ASC")
-	if err!=nil{return err};defer rows.Close()
-	prev:=""
-	for rows.Next(){
-		var id int64;var caseID,action,actor,target,storedPrev,storedHash string
-		if err:=rows.Scan(&id,&caseID,&action,&actor,&target,&storedPrev,&storedHash);err!=nil{return err}
-		if storedPrev!=prev{return fmt.Errorf("audit chain broken at event %d: previous hash mismatch",id)}
-		sum:=sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%s|%s|%s",prev,caseID,action,actor,target)))
-		if hex.EncodeToString(sum[:])!=storedHash{return fmt.Errorf("audit chain broken at event %d: event hash mismatch",id)}
-		prev=storedHash
-	}
-	return rows.Err()
+    rows,err:=db.Query("SELECT id,case_id,action,actor,target_id,metadata,prev_hash,event_hash,created_at FROM audit_events ORDER BY id ASC")
+    if err!=nil{return err};defer rows.Close()
+    prev:=""
+    for rows.Next(){
+        var id int64;var caseID,action,actor,target,storedPrev,storedHash string;var metadata []byte;var created time.Time
+        if err:=rows.Scan(&id,&caseID,&action,&actor,&target,&metadata,&storedPrev,&storedHash,&created);err!=nil{return err}
+        if storedPrev!=prev{return fmt.Errorf("audit chain broken at event %d: previous hash mismatch",id)}
+        sum:=sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s",prev,caseID,action,actor,target,string(metadata),created.UTC().Format(time.RFC3339Nano))))
+        if hex.EncodeToString(sum[:])!=storedHash{return fmt.Errorf("audit chain broken at event %d: event hash mismatch",id)}
+        prev=storedHash
+    }
+    return rows.Err()
 }
