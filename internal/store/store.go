@@ -57,11 +57,14 @@ CREATE TABLE IF NOT EXISTS audit_events (
     actor TEXT NOT NULL,
     target_id TEXT,
     metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    prev_hash TEXT NOT NULL DEFAULT '',
+    event_hash TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_evidence_case ON evidence(case_id);
 CREATE INDEX IF NOT EXISTS idx_evidence_hash ON evidence(sha256);
 CREATE INDEX IF NOT EXISTS idx_audit_case ON audit_events(case_id);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events(created_at, id);
 `)
     return err
 }
