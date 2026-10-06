@@ -6,6 +6,7 @@ import (
     "encoding/hex"
     "encoding/json"
     "io"
+    "fmt"
     "net/http"
     "os"
     "path/filepath"
@@ -26,6 +27,7 @@ func New(db *sql.DB, dataDir, apiToken string) http.Handler {
     mux.Handle("POST /api/v1/cases/{id}/evidence", requireAuth(http.HandlerFunc(s.uploadEvidence), "investigator", "evidence_officer"))
     mux.Handle("GET /api/v1/cases/{id}/evidence", requireAuth(http.HandlerFunc(s.listEvidence), "viewer", "investigator", "evidence_officer"))
     mux.Handle("GET /api/v1/cases/{id}/timeline", requireAuth(http.HandlerFunc(s.timeline), "viewer", "investigator", "evidence_officer"))
+    mux.Handle("GET /api/v1/cases/{case_id}/evidence/{evidence_id}/download", requireAuth(http.HandlerFunc(s.downloadEvidence), "viewer", "investigator", "evidence_officer"))
     mux.HandleFunc("GET /dashboard", s.dashboard)
     return withServer(s, mux)
 }
@@ -96,6 +98,23 @@ func (s *Server) timeline(w http.ResponseWriter,r *http.Request){
     var out []map[string]any
     for rows.Next(){var at any;var action,actor,target string;var meta []byte;if err:=rows.Scan(&at,&action,&actor,&target,&meta);err!=nil{writeError(w,500,"database error");return};var m any=map[string]any{};_ = json.Unmarshal(meta,&m);out=append(out,map[string]any{"at":at,"action":action,"actor":actor,"target_id":target,"metadata":m})}
     writeJSON(w,200,out)
+}
+
+func (s *Server) downloadEvidence(w http.ResponseWriter,r *http.Request) {
+    caseID,err:=uuid.Parse(r.PathValue("case_id"));if err!=nil{writeError(w,400,"invalid case id");return}
+    evidenceID,err:=uuid.Parse(r.PathValue("evidence_id"));if err!=nil{writeError(w,400,"invalid evidence id");return}
+    var filename,contentType,expected,path string
+    var size int64
+    err=s.db.QueryRowContext(r.Context(),"SELECT filename,content_type,size_bytes,sha256,storage_path FROM evidence WHERE id=$1 AND case_id=$2",evidenceID,caseID).Scan(&filename,&contentType,&size,&expected,&path)
+    if err==sql.ErrNoRows{writeError(w,404,"evidence not found");return};if err!=nil{writeError(w,500,"database error");return}
+    f,err:=os.Open(path);if err!=nil{writeError(w,404,"evidence object unavailable");return};defer f.Close()
+    h:=sha256.New();if _,err:=io.Copy(h,f);err!=nil{writeError(w,500,"could not verify evidence");return}
+    actual:=hex.EncodeToString(h.Sum(nil))
+    if actual!=expected{s.audit(r,caseID,"evidence.integrity_failure",actor(r),evidenceID.String());writeError(w,409,"evidence integrity verification failed");return}
+    if _,err:=f.Seek(0,0);err!=nil{writeError(w,500,"could not reopen evidence");return}
+    s.audit(r,caseID,"evidence.downloaded",actor(r),evidenceID.String())
+    w.Header().Set("Content-Type",contentType);w.Header().Set("Content-Disposition",fmt.Sprintf("attachment; filename=%q",filename));w.Header().Set("Content-Length",fmt.Sprint(size))
+    io.Copy(w,f)
 }
 
 func (s *Server) listEvidence(w http.ResponseWriter, r *http.Request) {
