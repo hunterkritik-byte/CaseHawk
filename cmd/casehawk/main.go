@@ -21,7 +21,7 @@ func main() {
     if err := store.Migrate(db); err != nil { log.Fatalf("migration: %v", err) }
 
     log.Printf("CaseHawk API listening on %s", addr)
-    if err := http.ListenAndServe(addr, api.New(db, dataDir, token)); err != nil { log.Fatal(err) }
+    if err := http.ListenAndServe(addr, api.New(db, dataDir, "")); err != nil { log.Fatal(err) }
 }
 
 func getenv(k, fallback string) string {
