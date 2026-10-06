@@ -52,3 +52,20 @@ func SaveSession(ctx context.Context,db *sql.DB,userID uuid.UUID,token string,ex
 	_,err:=db.ExecContext(ctx,"INSERT INTO sessions (token_hash,user_id,expires_at) VALUES (sha256($1),$2,$3)",token,userID,expires)
 	return err
 }
+
+
+func EnsureAdmin(db *sql.DB, username, password string) error {
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM users").Scan(&count); err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	username = strings.TrimSpace(username)
+	if username == "" || password == "" {
+		return errors.New("no users exist: set CASEHAWK_ADMIN_USER and CASEHAWK_ADMIN_PASSWORD")
+	}
+	_, err := CreateUser(db, username, password, "admin")
+	return err
+}
