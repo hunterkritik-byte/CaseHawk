@@ -12,7 +12,7 @@ const dashboardHTML = `<!doctype html>
 <style>body{font-family:system-ui,sans-serif;max-width:1100px;margin:auto;padding:24px;background:#f5f7fb;color:#172033}.card{background:#fff;border:1px solid #dfe4ee;border-radius:12px;padding:18px;margin:12px 0}input,button{padding:10px;border-radius:8px;border:1px solid #ccd3df;margin:4px}button{cursor:pointer}.hidden{display:none}.case{cursor:pointer}.event{padding:10px;border-left:3px solid #5b6cff;margin:8px 0;background:#f8f9fd}small{color:#687386}</style></head>
 <body><h1>🚔 CaseHawk</h1><p>Investigator dashboard</p>
 <section id="login" class="card"><h2>Sign in</h2><input id="user" placeholder="Username"><input id="pass" type="password" placeholder="Password"><button onclick="login()">Sign in</button><p id="err"></p></section>
-<section id="app" class="hidden"><div class="card"><button onclick="loadCases()">Refresh cases</button><button onclick="logout()">Sign out</button><span id="me"></span></div><div id="cases"></div><div id="timeline"></div></section>
+<section id="app" class="hidden"><div class="card"><button onclick="openNewCase()">➕ New case</button><button onclick="loadCases()">🔄 Refresh cases</button><button onclick="logout()">🚪 Sign out</button><span id="me"></span></div><div id="cases"></div><div id="workspace"></div><div id="timeline"></div></section>
 <script>
 let token=sessionStorage.getItem("casehawk_token");const $=id=>document.getElementById(id);
 function showApp(){ $("login").classList.toggle("hidden",!!token);$("app").classList.toggle("hidden",!token);if(token)loadCases();}
