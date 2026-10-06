@@ -70,8 +70,8 @@ CaseHawk is intended only for lawful, authorized investigations and evidence han
 ## Roadmap
 
 - [x] Investigator authentication and RBAC
-- [ ] Immutable audit log
-- [ ] Evidence download with hash re-verification
+- [x] Tamper-evident chained audit log
+- [x] Evidence download with hash re-verification
 - [x] Case timeline
 - [ ] Entity/evidence relationship graph
 - [ ] Secure report export
