@@ -46,7 +46,7 @@ List evidence:
 
 Protected endpoints require:
 
-`Authorization: Bearer <CASEHAWK_API_TOKEN>`
+`Authorization: Bearer <access_token>`
 
 ## Run locally
 
@@ -69,13 +69,13 @@ CaseHawk is intended only for lawful, authorized investigations and evidence han
 
 ## Roadmap
 
-- [ ] Investigator authentication and RBAC
+- [x] Investigator authentication and RBAC
 - [ ] Immutable audit log
 - [ ] Evidence download with hash re-verification
-- [ ] Case timeline
+- [x] Case timeline
 - [ ] Entity/evidence relationship graph
 - [ ] Secure report export
-- [ ] Web dashboard
+- [x] Web dashboard
 - [ ] Automated tests and CI
 - [ ] Security threat model and independent review
 
