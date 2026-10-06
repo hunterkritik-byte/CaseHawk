@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: casehawk
+      POSTGRES_USER: casehawk
+      POSTGRES_PASSWORD: casehawk
+    volumes:
+      - casehawk-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U casehawk -d casehawk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      CASEHAWK_DATABASE_URL: postgres://casehawk:casehawk@db:5432/casehawk?sslmode=disable
+      CASEHAWK_DATA_DIR: /data/evidence
+    ports:
+      - "8080:8080"
+    volumes:
+      - casehawk-evidence:/data/evidence
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  casehawk-db:
+  casehawk-evidence:
