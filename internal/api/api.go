@@ -22,10 +22,10 @@ func New(db *sql.DB, dataDir, apiToken string) http.Handler {
     mux.HandleFunc("GET /healthz", s.health)
     mux.HandleFunc("POST /api/v1/auth/login", s.login)
     mux.Handle("POST /api/v1/cases", requireAuth(http.HandlerFunc(s.createCase), "investigator"))
-    mux.Handle("GET /api/v1/cases", requireAuth(http.HandlerFunc(s.listCases), "viewer"))
+    mux.Handle("GET /api/v1/cases", requireAuth(http.HandlerFunc(s.listCases), "viewer", "investigator", "evidence_officer"))
     mux.Handle("POST /api/v1/cases/{id}/evidence", requireAuth(http.HandlerFunc(s.uploadEvidence), "investigator", "evidence_officer"))
-    mux.Handle("GET /api/v1/cases/{id}/evidence", requireAuth(http.HandlerFunc(s.listEvidence), "viewer"))
-    mux.Handle("GET /api/v1/cases/{id}/timeline", requireAuth(http.HandlerFunc(s.timeline), "viewer"))
+    mux.Handle("GET /api/v1/cases/{id}/evidence", requireAuth(http.HandlerFunc(s.listEvidence), "viewer", "investigator", "evidence_officer"))
+    mux.Handle("GET /api/v1/cases/{id}/timeline", requireAuth(http.HandlerFunc(s.timeline), "viewer", "investigator", "evidence_officer"))
     mux.HandleFunc("GET /dashboard", s.dashboard)
     return withServer(s, mux)
 }
