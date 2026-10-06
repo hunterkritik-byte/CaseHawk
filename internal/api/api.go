@@ -126,7 +126,17 @@ func (s *Server) listEvidence(w http.ResponseWriter, r *http.Request) {
     writeJSON(w,200,out)
 }
 
-func (s *Server) audit(r *http.Request, caseID uuid.UUID, action, who, target string) { _,_=s.db.ExecContext(r.Context(),"INSERT INTO audit_events (case_id,action,actor,target_id) VALUES ($1,$2,$3,$4)",caseID,action,who,target) }
+func (s *Server) audit(r *http.Request, caseID uuid.UUID, action, who, target string) {
+    meta:=[]byte(`{}`)
+    tx,err:=s.db.BeginTx(r.Context(),nil);if err!=nil{return}
+    defer tx.Rollback()
+    var prev string
+    _=tx.QueryRowContext(r.Context(),"SELECT event_hash FROM audit_events ORDER BY id DESC LIMIT 1").Scan(&prev)
+    payload:=fmt.Sprintf("%s|%s|%s|%s|%s",prev,caseID.String(),action,who,target)
+    sum:=sha256.Sum256([]byte(payload));eventHash:=hex.EncodeToString(sum[:])
+    if _,err=tx.ExecContext(r.Context(),"INSERT INTO audit_events (case_id,action,actor,target_id,metadata,prev_hash,event_hash) VALUES ($1,$2,$3,$4,$5,$6,$7)",caseID,action,who,target,meta,prev,eventHash);err!=nil{return}
+    _=tx.Commit()
+}
 func actor(r *http.Request) string { if v:=strings.TrimSpace(r.Header.Get("X-CaseHawk-Actor")); v!="" { return v }; return "system" }
 func writeJSON(w http.ResponseWriter,status int,v any) { w.Header().Set("Content-Type","application/json"); w.WriteHeader(status); _=json.NewEncoder(w).Encode(v) }
 func writeError(w http.ResponseWriter,status int,msg string) { writeJSON(w,status,map[string]string{"error":msg}) }
