@@ -144,7 +144,9 @@ func (s *Server) audit(r *http.Request, caseID uuid.UUID, action, who, target st
     _ = tx.Commit()
 }
 func actor(r *http.Request) string {
-    if u, ok := (&Server{}).currentUser(r); ok { return u.Username }
+    if s, ok := r.Context().Value(serverKey{}).(*Server); ok {
+        if u, ok := s.currentUser(r); ok { return u.Username }
+    }
     return "system"
 }
 func writeJSON(w http.ResponseWriter,status int,v any) { w.Header().Set("Content-Type","application/json"); w.WriteHeader(status); _=json.NewEncoder(w).Encode(v) }
