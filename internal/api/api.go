@@ -25,6 +25,8 @@ func New(db *sql.DB, dataDir, apiToken string) http.Handler {
     mux.Handle("GET /api/v1/cases", requireAuth(http.HandlerFunc(s.listCases), "viewer"))
     mux.Handle("POST /api/v1/cases/{id}/evidence", requireAuth(http.HandlerFunc(s.uploadEvidence), "investigator", "evidence_officer"))
     mux.Handle("GET /api/v1/cases/{id}/evidence", requireAuth(http.HandlerFunc(s.listEvidence), "viewer"))
+    mux.Handle("GET /api/v1/cases/{id}/timeline", requireAuth(http.HandlerFunc(s.timeline), "viewer"))
+    mux.HandleFunc("GET /dashboard", s.dashboard)
     return withServer(s, mux)
 }
 
@@ -85,6 +87,15 @@ func (s *Server) uploadEvidence(w http.ResponseWriter, r *http.Request) {
     if err != nil { _=os.Remove(path); writeError(w,500,"database error"); return }
     s.audit(r,caseID,"evidence.uploaded",actor(r),id.String())
     writeJSON(w,201,map[string]any{"id":id,"case_id":caseID,"filename":filepath.Base(header.Filename),"content_type":contentType,"size_bytes":n,"sha256":sum})
+}
+
+func (s *Server) timeline(w http.ResponseWriter,r *http.Request){
+    caseID,err:=uuid.Parse(r.PathValue("id"));if err!=nil{writeError(w,400,"invalid case id");return}
+    rows,err:=s.db.QueryContext(r.Context(),`SELECT created_at, action, actor, target_id, metadata FROM audit_events WHERE case_id=$1 ORDER BY created_at ASC`,caseID)
+    if err!=nil{writeError(w,500,"database error");return};defer rows.Close()
+    var out []map[string]any
+    for rows.Next(){var at any;var action,actor,target string;var meta []byte;if err:=rows.Scan(&at,&action,&actor,&target,&meta);err!=nil{writeError(w,500,"database error");return};var m any=map[string]any{};_ = json.Unmarshal(meta,&m);out=append(out,map[string]any{"at":at,"action":action,"actor":actor,"target_id":target,"metadata":m})}
+    writeJSON(w,200,out)
 }
 
 func (s *Server) listEvidence(w http.ResponseWriter, r *http.Request) {
