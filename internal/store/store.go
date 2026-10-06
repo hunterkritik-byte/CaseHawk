@@ -16,6 +16,22 @@ func Open(dsn string) (*sql.DB, error) {
 
 func Migrate(db *sql.DB) error {
     _, err := db.Exec(`
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    password_hash BYTEA NOT NULL,
+    password_salt BYTEA NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('admin','investigator','evidence_officer','viewer')),
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS sessions (
+    token_hash TEXT PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 CREATE TABLE IF NOT EXISTS cases (
     id UUID PRIMARY KEY,
     case_number TEXT NOT NULL UNIQUE,
