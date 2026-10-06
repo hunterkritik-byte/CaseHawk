@@ -15,7 +15,6 @@ func main() {
     dataDir := getenv("CASEHAWK_DATA_DIR", "./data/evidence")
     adminUser := os.Getenv("CASEHAWK_ADMIN_USER")
     adminPassword := os.Getenv("CASEHAWK_ADMIN_PASSWORD")
-	token := os.Getenv("CASEHAWK_API_TOKEN")
 
     db, err := store.Open(dsn)
     if err != nil { log.Fatalf("database: %v", err) }
