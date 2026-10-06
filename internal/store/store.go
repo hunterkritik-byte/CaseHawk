@@ -68,6 +68,13 @@ CREATE INDEX IF NOT EXISTS idx_evidence_case ON evidence(case_id);
 CREATE INDEX IF NOT EXISTS idx_evidence_hash ON evidence(sha256);
 CREATE INDEX IF NOT EXISTS idx_audit_case ON audit_events(case_id);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events(created_at, id);
+CREATE OR REPLACE FUNCTION casehawk_block_audit_mutation() RETURNS trigger AS $
+BEGIN
+    RAISE EXCEPTION 'audit_events is append-only';
+END;
+$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS audit_events_no_update ON audit_events;
+CREATE TRIGGER audit_events_no_update BEFORE UPDATE OR DELETE ON audit_events FOR EACH ROW EXECUTE FUNCTION casehawk_block_audit_mutation();
 `)
     return err
 }
