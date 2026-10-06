@@ -3,6 +3,9 @@ package store
 import (
     "context"
     "database/sql"
+    "crypto/sha256"
+    "encoding/hex"
+    "fmt"
     _ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -67,4 +70,19 @@ CREATE INDEX IF NOT EXISTS idx_audit_case ON audit_events(case_id);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events(created_at, id);
 `)
     return err
+}
+
+func VerifyAuditChain(db *sql.DB) error {
+	rows,err:=db.Query("SELECT id,case_id,action,actor,target_id,prev_hash,event_hash FROM audit_events ORDER BY id ASC")
+	if err!=nil{return err};defer rows.Close()
+	prev:=""
+	for rows.Next(){
+		var id int64;var caseID,action,actor,target,storedPrev,storedHash string
+		if err:=rows.Scan(&id,&caseID,&action,&actor,&target,&storedPrev,&storedHash);err!=nil{return err}
+		if storedPrev!=prev{return fmt.Errorf("audit chain broken at event %d: previous hash mismatch",id)}
+		sum:=sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%s|%s|%s",prev,caseID,action,actor,target)))
+		if hex.EncodeToString(sum[:])!=storedHash{return fmt.Errorf("audit chain broken at event %d: event hash mismatch",id)}
+		prev=storedHash
+	}
+	return rows.Err()
 }
